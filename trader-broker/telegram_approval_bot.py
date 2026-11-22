@@ -182,7 +182,14 @@ def handle_callback(cq):
     _api("answerCallbackQuery", callback_query_id=cq["id"], text="✅ Bestätigt")
     _clear_buttons_and_set_text(chat_id, message_id, "✅ Bestätigt -- wird an IB (Paper) gesendet: " + plain)
 
-    result = subprocess.run([sys.executable, IB_ADAPTER, "place", "--index", str(idx)],
+    # "-u": ohne das bleibt ib_gateway_order.py's eigener print(json.dumps(...))
+    # im stdout-Puffer stecken, waehrend das darin verschachtelte ticket.py-
+    # Subprocess seine Textzeilen bei dessen eigenem (frueheren) Prozessende
+    # sofort durchschreibt -- die eingefangene Ausgabe zeigt dann den JSON-
+    # Block faelschlich NACH dem Text, der eigentlich zeitlich spaeter kommt
+    # (entdeckt 2026-11-22: Telegram-Nachricht zeigte "Recorded order..."
+    # vor dem JSON, obwohl der Code das JSON zuerst druckt).
+    result = subprocess.run([sys.executable, "-u", IB_ADAPTER, "place", "--index", str(idx)],
                              cwd=SKILL_ROOT, capture_output=True, text=True)
     ok = result.returncode == 0
     suffix = "✅ Platziert (Paper)" if ok else "⚠️ Fehler beim Senden"

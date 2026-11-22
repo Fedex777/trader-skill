@@ -119,7 +119,28 @@ def _clear_buttons_and_set_text(chat_id, message_id, text):
          reply_markup={"inline_keyboard": []})
 
 
+def _is_authorized(cq):
+    """Whitelist: nur der eine konfigurierte Chat (TELEGRAM_CHAT_ID) darf
+    Freigaben erteilen -- sowohl der tippende User als auch der Chat, in dem
+    die Nachricht steht, muessen damit uebereinstimmen (schuetzt auch, falls
+    der Bot je in eine Gruppe eingeladen wird, in der jemand anderes tippt)."""
+    from_id = str(cq.get("from", {}).get("id", ""))
+    chat_id = str(cq.get("message", {}).get("chat", {}).get("id", ""))
+    return bool(CHAT_ID) and from_id == str(CHAT_ID) and chat_id == str(CHAT_ID)
+
+
 def handle_callback(cq):
+    if not _is_authorized(cq):
+        from_id = cq.get("from", {}).get("id")
+        from_name = cq.get("from", {}).get("username") or cq.get("from", {}).get("first_name") or "?"
+        print(f"[telegram_approval_bot] UNAUTORISIERTER Tap von user_id={from_id} ({from_name}) -- ignoriert.",
+              file=sys.stderr)
+        _api("answerCallbackQuery", callback_query_id=cq["id"],
+             text="Nicht autorisiert.", show_alert=True)
+        _api("sendMessage", chat_id=CHAT_ID,
+             text="⚠️ Unautorisierter Freigabe-Versuch von user_id=%s (%s) blockiert." % (from_id, from_name))
+        return
+
     data = cq.get("data", "")
     parts = data.split(":")
     if len(parts) != 3:

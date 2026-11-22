@@ -9,7 +9,7 @@ ib-gateway-paper:4004 -- es gibt in diesem Skript und im ganzen trader-
 skill-test-Container KEINEN Pfad zu einem Live-Konto. Ein Telegram-Tap kann
 also nie mehr als eine Paper-Order auslosen.
 
-Ablauf je Zyklus (Default alle 60s):
+Ablauf je Zyklus (Default alle 10s, fuer schnelles Feedback nach einem Tap):
   1. trader-risk/check.py laufen lassen (aktualisiert state/risk.json fuer
      alle aktuellen orders.json-Eintraege -- Alpaca-Fingerprint-Logik,
      siehe ticket.py).
@@ -179,8 +179,8 @@ def handle_callback(cq):
         return
     a.index, a.reply = idx, "yes"
     ticket.cmd_approve(a)
-    _api("answerCallbackQuery", callback_query_id=cq["id"], text="Freigegeben -- sende an IB (Paper)...")
-    _clear_buttons_and_set_text(chat_id, message_id, "⏳ Freigegeben, wird an IB (Paper) gesendet: " + plain)
+    _api("answerCallbackQuery", callback_query_id=cq["id"], text="✅ Bestätigt")
+    _clear_buttons_and_set_text(chat_id, message_id, "✅ Bestätigt -- wird an IB (Paper) gesendet: " + plain)
 
     result = subprocess.run([sys.executable, IB_ADAPTER, "place", "--index", str(idx)],
                              cwd=SKILL_ROOT, capture_output=True, text=True)
@@ -212,7 +212,7 @@ def poll_updates():
         _save_json(OFFSET_PATH, {"offset": new_offset})
 
 
-def run(once=False, interval=60):
+def run(once=False, interval=10):
     if not TOKEN or not CHAT_ID:
         print("TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID nicht gesetzt -- Bot bleibt inaktiv "
               "(trader-skill-test/.env ausfuellen).", file=sys.stderr)
@@ -237,7 +237,7 @@ def main():
     sub = p.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("run")
     r.add_argument("--once", action="store_true")
-    r.add_argument("--interval", type=int, default=60)
+    r.add_argument("--interval", type=int, default=10)
     a = p.parse_args()
     run(once=a.once, interval=a.interval)
 
